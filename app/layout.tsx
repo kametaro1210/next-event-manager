@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,10 +21,31 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
+      lang="ja"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col bg-[var(--background)] text-[var(--foreground)]">
+          <header>
+            <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4">
+              <Link href={"/"} className="text-sm font-semibold tracking-wide">
+                Event Management
+              </Link>
+              <nav className="flex items-center gap-4">
+                <Link
+                  href={"/dashboard"}
+                  className="text-sm text-[var(--muted-foreground)]"
+                >
+                  Dashboard
+                </Link>
+              </nav>
+            </div>
+          </header>
+
+          {/* 現在のURLに対応するページを表示（/ では app/page.tsx） */}
+          <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-8">
+            {children}
+          </main>
+      </body>
     </html>
   );
 }
