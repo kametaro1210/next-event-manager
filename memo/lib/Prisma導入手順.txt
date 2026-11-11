@@ -1,0 +1,95 @@
+
+==========================================
+Prismaを導入してNeonのDBを使う流れ
+==========================================
+
+NeonのPostgreSQLデータベースをPrismaから利用するまでの流れを説明します。
+現在のプロジェクト設定と、これから必要になる作業を分けて記載します。
+
+------------------------------------------
+1. Prisma関連のライブラリをインストールする
+------------------------------------------
+
+- package.json
+npm install @prisma/client@^7 @prisma/adapter-pg@^7 pg dotenv
+npm install -D prisma@^7
+
+@prisma/clientは、アプリからDBのデータを操作するためのライブラリです。
+prismaは、スキーマの反映やClient生成に使う開発用ツールです。
+@prisma/adapter-pgとpgは、PostgreSQL（Neon）への接続に使います。
+dotenvは、.envに設定した環境変数をPrismaの設定から読み込むために使います。
+インストールしたライブラリの情報はpackage.jsonとpackage-lock.jsonに記録されます。
+
+------------------------------------------
+2. Prismaの初期設定を作成する
+------------------------------------------
+
+- prisma/schema.prisma
+npx prisma init --datasource-provider postgresql
+
+DBの種類や、データモデル（テーブルと項目）を定義するファイルです。
+現在はPostgreSQLの指定のみで、modelはまだ定義されていません。
+
+- prisma.config.ts
+Prisma CLIの設定ファイルです。
+.envを読み込み、DATABASE_URLをDB接続先として使います。
+
+- .env
+DATABASE_URLにNeonの接続文字列を設定します。
+この値はPrismaが接続するデータベースを指定します。
+.envには認証情報が含まれるため、Gitには登録しません。
+
+このプロジェクトの.envには、Prisma用のDATABASE_URLのほかに
+Neon Auth用のNEON_AUTH_BASE_URLとNEON_AUTH_COOKIE_SECRETがあります。
+後者2つは認証機能の設定であり、PrismaのDB接続先ではありません。
+
+------------------------------------------
+3. テーブルを定義してNeonに反映する
+------------------------------------------
+
+- prisma/schema.prisma
+保存するデータをmodelとして定義します。
+modelを定義すると、Prisma Clientからそのデータを操作できるようになります。
+
+npx prisma migrate dev --name init
+
+schema.prismaの定義をNeonのDBに反映し、変更履歴を
+prisma/migrationsに作成します。
+現在はmodelもマイグレーションもないため、実行前にテーブル設計が必要です。
+
+------------------------------------------
+4. Prisma Clientを生成する
+------------------------------------------
+
+- generated/prisma
+npx prisma generate
+
+schema.prismaのmodelに対応するPrisma Clientを生成します。
+このプロジェクトでは、生成先はschema.prismaの設定によりgenerated/prismaです。
+schema.prismaを変更した後は、Clientを再生成します。
+generated/prismaは自動生成ファイルなので、直接編集しません。
+
+------------------------------------------
+5. アプリからDBを操作する
+------------------------------------------
+
+- lib/prisma.ts（これから作成）
+Prisma ClientとPostgreSQL adapterを初期化し、Neonに接続するファイルです。
+アプリのサーバー側コードからこのファイルを読み込み、
+Prisma Clientを使ってデータの取得・追加・更新・削除を行います。
+
+現在はlib/prisma.tsがなく、アプリからPrismaを使う処理はまだありません。
+また、modelとマイグレーションも未作成です。
+
+------------------------------------------
+6. 利用開始までの全体の流れ
+------------------------------------------
+
+1. .envのDATABASE_URLにNeonの接続文字列を設定する。
+2. prisma/schema.prismaにテーブルとなるmodelを定義する。
+3. npx prisma migrate dev --name initでNeonのDBに反映する。
+4. npx prisma generateでPrisma Clientを生成する。
+5. lib/prisma.tsを作成して接続を初期化し、サーバー側コードから利用する。
+
+NEON_AUTH_BASE_URLとNEON_AUTH_COOKIE_SECRETはNeon Auth用です。
+PrismaがDBに接続するときに使う環境変数はDATABASE_URLです。
