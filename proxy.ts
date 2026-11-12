@@ -42,5 +42,5 @@ export default async function proxy(request: NextRequest) {
 
 // Proxyを実行する対象のURLパスを指定する設定。
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*", "/events/:path*"],
 };
