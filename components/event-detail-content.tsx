@@ -2,6 +2,7 @@ import { createInviteLinkAction } from "@/lib/actions/events";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EventDeleteButton } from "./event-delete-button";
 import { countByStatus } from "./dashboard-content";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
@@ -113,9 +114,15 @@ export async function EventDetailContent({
             </p>
           )}
         </div>
-        <Button asChild variant="outline">
-          <Link href={"/dashboard"}>一覧に戻る</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/events/${event.id}/edit`}>イベントの編集</Link>
+          </Button>
+          <EventDeleteButton eventId={event.id} eventTitle={event.title} />
+          <Button asChild variant="outline">
+            <Link href={"/dashboard"}>一覧に戻る</Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 text-xs">
