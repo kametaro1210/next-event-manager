@@ -1,0 +1,173 @@
+
+==========================================
+招待リンクを作成して出欠を回答する流れ
+==========================================
+
+主催者がイベントの招待リンクを作成し、ゲストがリンクから出欠を回答するまでの流れを説明します。
+招待情報と出欠回答はPrismaを使ってNeonのデータベースに保存します。
+
+------------------------------------------
+1. 招待リンクに必要な接続情報を設定する
+------------------------------------------
+
+- .env
+DATABASE_URLにNeonのPostgreSQL接続文字列を設定します。
+Prismaがイベント、招待、出欠回答のデータを読み書きするときに使います。
+
+NEXT_PUBLIC_APP_URLにアプリの公開URLを設定します。
+ローカル開発ではhttp://localhost:3000、本番ではアプリの公開URLを設定します。
+招待リンクのURLを組み立てるときに使うため、URLの末尾にスラッシュは付けません。
+
+.envにはデータベース接続文字列が含まれるため、Gitに登録したり、他の人に共有したりしません。
+DATABASE_URLが未設定または誤っていると、招待情報や出欠回答の読み書きが失敗します。
+NEXT_PUBLIC_APP_URLが未設定または誤っていると、表示される招待リンクのURLが正しくなりません。
+
+- lib\prisma.ts
+DATABASE_URLからPrisma PostgreSQL adapterを初期化し、アプリで使うPrisma Clientを作成します。
+
+------------------------------------------
+2. 主催者がイベント詳細ページを開く
+------------------------------------------
+
+- app\dashboard\page.tsx
+getSessionでログインセッションを取得します。
+ログイン中のユーザーがいれば、そのユーザーIDをDashboardContentに渡します。
+
+- components\dashboard-content.tsx
+DashboardContentがprisma.event.findManyを使い、ログイン中の主催者が所有するイベント一覧を取得します。
+countByStatusでイベントごとの出欠回答数を集計します。
+各イベントのOpenリンクを押すと、/events/{eventId}を開きます。
+
+- proxy.ts
+/dashboardと/events以下の通常のページリクエストにNeon Authの認証処理を適用します。
+Server ActionのPOSTリクエストは認証ミドルウェアを通さず、Server Action側の処理に進めます。
+/invite以下はmatcherの対象外のため、ゲストがログインせずに招待ページを開けます。
+
+- app\events\[eventId]\page.tsx
+URLのeventIdを取り出し、getSessionでログインユーザーを確認します。
+ユーザー情報がなければエラーにし、ログイン中ならuserIdとeventIdをEventDetailContentに渡します。
+
+- components\event-detail-content.tsx
+prisma.event.findFirstで、eventIdと主催者のuserIdが一致するイベントを取得します。
+招待情報と回答状況も取得し、countByStatusで出欠ごとの回答数を集計します。
+prisma.eventRsvp.findManyで参加者一覧を取得し、画面に表示します。
+
+------------------------------------------
+3. 主催者が招待リンクを作成する
+------------------------------------------
+
+- components\event-detail-content.tsx
+createInviteLinkAction.bind(null, event.id)で、対象イベントのIDをあらかじめ渡したフォーム用アクションを作成します。
+「招待リンクを作成」ボタンを押すと、createInviteLinkActionが実行されます。
+
+- lib\actions\events.ts
+createInviteLinkActionはgetSessionでログインユーザーを確認し、
+prisma.event.findFirstで対象イベントの所有者であることを確認します。
+所有者でなければ処理を中止します。
+
+crypto.randomUUIDで招待トークンを作り、prisma.eventInvite.upsertで招待情報を保存します。
+同じイベントの招待がすでにある場合はトークンを更新し、なければ新しく作成します。
+保存後にrevalidatePathで/events/{eventId}を再検証し、詳細ページの表示を更新します。
+
+- components\event-detail-content.tsx
+保存された招待トークンとNEXT_PUBLIC_APP_URLを使い、
+{NEXT_PUBLIC_APP_URL}/invite/{token}の形式で招待URLを組み立てて表示します。
+主催者は表示されたURLをゲストに共有します。
+
+------------------------------------------
+4. ゲストが招待ページを開く
+------------------------------------------
+
+- app\invite\[token]\page.tsx
+ゲストが共有された/invite/{token}を開くと、このページが実行されます。
+URLの動的パラメーターからtokenを取得し、InviteRsvpContentに渡します。
+
+出欠の送信後はServer Actionが/invite/{token}?submitted=1へリダイレクトします。
+このページはsearchParamsからsubmittedを取得し、値が"1"ならtrue、それ以外ならfalseにして渡します。
+submittedがtrueの場合は、出欠の登録または変更を受け付けたメッセージを表示します。
+
+- components\invite-rsvp-content.tsx
+prisma.eventInvite.findFirstでURLのtokenに一致する招待を探し、関連するイベント情報を取得します。
+招待が見つからなければnotFoundで404ページを表示します。
+見つかった場合は、イベント名・日時・場所・説明と出欠フォームを表示します。
+
+submitOrUpdateRsvpAction.bind(null, token)で、この招待のtokenを渡したフォーム用アクションを作成します。
+ゲストは名前、メールアドレス、出欠状況を入力し、「送信」ボタンを押します。
+
+------------------------------------------
+5. ゲストの出欠回答を登録または更新する
+------------------------------------------
+
+- lib\actions\events.ts
+フォーム送信でsubmitOrUpdateRsvpActionが実行されます。
+引数として、招待tokenとフォームのFormData（名前、メールアドレス、出欠状況）を受け取ります。
+
+parseRsvpで入力値を確認し、isRsvpStatusで出欠状況がPrismaのRsvpStatusに含まれるか判定します。
+無効な入力の場合はエラーにします。
+
+prisma.eventInvite.findFirstでtokenに一致する招待とイベントを取得します。
+招待が見つからなければ処理を中止します。
+
+メールアドレスを小文字に変換してから、prisma.eventRsvp.upsertを実行します。
+同じイベントに同じメールアドレスの回答があれば内容と回答日時を更新し、
+なければ新しい出欠回答を作成します。
+保存後、redirectで/invite/{token}?submitted=1へ戻します。
+
+- app\invite\[token]\page.tsx
+リダイレクト後にページが再表示され、submittedがtrueとしてInviteRsvpContentに渡されます。
+
+- components\invite-rsvp-content.tsx
+送信完了メッセージを表示します。
+ゲストは同じフォームから回答を変更することもできます。
+
+------------------------------------------
+6. 主催者が回答結果を確認する
+------------------------------------------
+
+- components\event-detail-content.tsx
+主催者がイベント詳細ページを開くと、prisma.eventRsvp.findManyで回答一覧を取得します。
+countByStatusで参加・未定・不参加の件数を集計し、参加者一覧とともに表示します。
+
+同じメールアドレスで再回答した場合は既存の回答が更新されるため、
+回答件数が重複して増えることはありません。
+
+------------------------------------------
+7. 処理全体の順序
+------------------------------------------
+
+1. .envにDATABASE_URL、Neon Authの接続情報、NEXT_PUBLIC_APP_URLを設定する。
+2. 主催者がログインし、ダッシュボードからイベント詳細ページを開く。
+3. 「招待リンクを作成」を押し、createInviteLinkActionで招待トークンを保存する。
+4. 作成された招待URLをゲストに共有する。
+5. ゲストが/invite/{token}を開き、app\invite\[token]\page.tsxから出欠フォームを表示する。
+6. ゲストがフォームを送信し、submitOrUpdateRsvpActionが出欠回答を登録または更新する。
+7. /invite/{token}?submitted=1に戻り、送信完了メッセージを表示する。
+8. 主催者がイベント詳細ページで回答数と参加者一覧を確認する。
+
+------------------------------------------
+8. 関連するファイル
+------------------------------------------
+
+- components\event-detail-content.tsx
+主催者向けイベント詳細、招待URLの表示、出欠一覧と集計を行います。
+
+- app\events\[eventId]\page.tsx
+主催者のセッションを確認し、イベント詳細コンポーネントを表示します。
+
+- app\invite\[token]\page.tsx
+招待URLのtokenと送信完了状態を受け取り、ゲスト向け出欠ページを表示します。
+
+- components\invite-rsvp-content.tsx
+招待情報とイベント情報を取得し、ゲスト向けフォームを表示します。
+
+- lib\actions\events.ts
+createInviteLinkActionで招待リンクを作成し、submitOrUpdateRsvpActionで出欠を登録・更新します。
+
+- proxy.ts
+ダッシュボードとイベント詳細ページの認証を行い、招待ページはログインなしでアクセスできるようにします。
+
+- prisma\schema.prisma
+Event、EventInvite、EventRsvpのModelと、それぞれのリレーションを定義します。
+
+- prisma.config.ts、lib\prisma.ts
+Prismaの設定と、データベースに接続するPrisma Clientを定義します。
