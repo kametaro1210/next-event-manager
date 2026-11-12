@@ -9,11 +9,11 @@ export default function AuthPage({
   params: Promise<{ path: string }>;
 }) {
   return (
-    <main className="container mx-auto flex grow flex-col items-center justify-center gap-3 self-center p-4 md:p-6">
+    <div className="flex w-full flex-1 flex-col items-center justify-center gap-3">
       <Suspense fallback={<DelayedSpinner />}>
         <AuthPageContent params={params} />
       </Suspense>
-    </main>
+    </div>
   );
 }
 

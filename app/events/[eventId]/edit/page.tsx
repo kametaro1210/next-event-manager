@@ -122,7 +122,7 @@ async function EditEventPageContent({
               <FormMessage>※未入力の場合、開催日時は未設定になります。</FormMessage>
             </FormField>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button type="submit">イベントを更新</Button>
               <Button type="button" variant="outline" asChild>
                 <Link href={`/events/${event.id}`}>キャンセル</Link>

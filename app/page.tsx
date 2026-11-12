@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { SignedOut } from "@neondatabase/auth/react";
 
 export default function Home() {
   return (
@@ -17,19 +18,25 @@ export default function Home() {
         <Badge variant="secondary" className="w-fit">
           Next.js 16 + Neon Auth + Neon Postgres
         </Badge>
-        <h1 className="text-4xl font-semibold tracking-tight">
+        <h1 className="text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">
           イベントの計画と出欠管理をすばやく
         </h1>
-        <p className="max-w-2xl text-[var(--muted-foreground)]">
+        <p className="max-w-2xl leading-7 text-[var(--muted-foreground)]">
           イベントを作成して専用の招待リンクを共有し、「参加」「未定」「不参加」の人数や出席状況のリアルタイムな更新を確認できます。
         </p>
-        <div className="flex flex-wrap gap-3">
-          <Button asChild>
-            <Link href="/auth/sign-up">アカウント作成</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/auth/sign-in">サインイン</Link>
-          </Button>
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap">
+
+          {/* ログインしてないときのみ表示 */}
+          <SignedOut>
+            <>
+              <Button asChild>
+                <Link href="/auth/sign-up">アカウント作成</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/auth/sign-in">サインイン</Link>
+              </Button>
+            </>
+          </SignedOut>
           <Button variant="ghost" asChild>
             <Link href="/dashboard">ダッシュボードを開く</Link>
           </Button>

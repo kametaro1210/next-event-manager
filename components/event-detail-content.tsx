@@ -96,8 +96,8 @@ export async function EventDetailContent({
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-2">
-          <h1 className="text-2xl font-semibold tracking-tight">
+        <div className="min-w-0 space-y-2">
+          <h1 className="break-words text-xl font-semibold tracking-tight sm:text-2xl">
             {event.title}
           </h1>
           <p>
@@ -114,7 +114,7 @@ export async function EventDetailContent({
             </p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
             <Link href={`/events/${event.id}/edit`}>イベントの編集</Link>
           </Button>
@@ -138,7 +138,7 @@ export async function EventDetailContent({
             このリンクを共有すると、ゲストはアカウントを作成せずに出欠を回答できます。
           </p>
           {inviteUrl ? (
-            <div className="rounded-md border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+            <div className="break-all rounded-md border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
               {inviteUrl}
             </div>
           ) : (

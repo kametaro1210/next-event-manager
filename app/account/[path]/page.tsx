@@ -14,11 +14,11 @@ export default function AccountPage({
   params: Promise<{ path: string }>;
 }) {
   return (
-    <main className="container p-4 md:p-6">
+    <div className="w-full min-w-0 flex-1">
       <Suspense fallback={<DelayedSpinner />}>
         <AccountPageContent params={params} />
       </Suspense>
-    </main>
+    </div>
   );
 }
 
