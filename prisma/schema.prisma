@@ -6,3 +6,122 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+// 参加者の回答状況を表す値。
+enum RsvpStatus {
+  参加する
+  未定
+  不参加
+}
+
+/*
+  modelを作成したらコマンド実行
+  npx prisma migrate dev --name init
+*/
+
+/*
+  イベントを保存するモデル。
+
+  作成される列:
+  - id: uuid型。イベントID。自動でUUIDを設定する。
+  - owner_user_id: text型。イベント主催者のユーザーID。
+  - title: text型。イベント名。
+  - description: text型。説明。省略可能。
+  - location: text型。開催場所。省略可能。
+  - event_date: timestamptz(6)型。開催日時。省略可能。
+  - created_at: timestamptz(6)型。作成時刻。初期値は現在時刻。
+  - updated_at: timestamptz(6)型。更新時刻。作成時は現在時刻で、更新時に自動更新する。
+
+  EventはEventInviteとEventRsvpの親。1つのイベントに招待は1件まで、参加回答は複数件紐づく。
+  イベントを削除すると、関連する招待と参加回答も削除される。
+*/
+
+model Event {
+  id String @id @default(uuid()) @db.Uuid
+  ownerUserId String    @map("owner_user_id")
+  title       String
+  description String?
+  location    String?
+  eventDate   DateTime? @map("event_date") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  eventInvites EventInvite?
+  rsvps EventRsvp[]
+
+  @@index([ownerUserId, createdAt(sort: Desc)], map: "idx_events_owner")
+  @@map("events")
+}
+
+// -------------------------------------------------------------------------------------
+
+/*
+  イベントへの招待情報を保存するモデル。
+
+  作成される列:
+  - id: uuid型。招待ID。自動でUUIDを設定する。
+  - event_id: uuid型。招待先イベントのID。同じイベントには1件だけ設定できる。
+  - token: text型。招待に使うトークン。同じ値は設定できない。
+  - created_at: timestamptz(6)型。作成時刻。初期値は現在時刻。
+
+  EventInviteはEventの子。eventは親イベント、rsvpsはこの招待に紐づく参加回答を表す。
+  1つの招待に複数のEventRsvpが紐づく。
+  親のEventを削除するとこの招待も削除され、招待を削除すると関連する回答のinvite_idはNULLになる。
+*/
+
+model EventInvite {
+  id        String   @id @default(uuid()) @db.Uuid
+  eventId   String   @unique @map("event_id") @db.Uuid
+  token     String   @unique
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  rsvps EventRsvp[]
+
+  @@map("event_invites")
+}
+
+// -------------------------------------------------------------------------------------
+
+/*
+  イベントへの参加回答を保存するモデル。
+
+  作成される列:
+  - id: uuid型。回答ID。自動でUUIDを設定する。
+  - event_id: uuid型。回答先イベントのID。
+  - invite_id: uuid型。利用した招待ID。招待を使わない場合はNULL。
+  - name: text型。回答者名。
+  - email: text型。回答者のメールアドレス。
+  - email_normalized: text型。重複確認用に正規化したメールアドレス。
+  - status: RsvpStatus型。参加・未定・不参加のいずれか。
+  - responded_at: timestamptz(6)型。回答時刻。初期値は現在時刻。
+  - created_at: timestamptz(6)型。作成時刻。初期値は現在時刻。
+  - updated_at: timestamptz(6)型。更新時刻。作成時は現在時刻で、更新時に自動更新する。
+
+  EventRsvpはEventの子。eventは回答先イベント、inviteは任意で利用した招待を表す。
+  イベントを削除すると回答も削除される。
+*/
+
+model EventRsvp {
+  id  String     @id @default(uuid()) @db.Uuid
+  eventId String @map("event_id") @db.Uuid
+  inviteId        String?    @map("invite_id") @db.Uuid
+  name            String
+  email           String
+  emailNormalized String   @map("email_normalized")
+  status RsvpStatus
+  respondedAt     DateTime   @default(now()) @map("responded_at") @db.Timestamptz(6)
+  createdAt       DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime   @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  // 招待を削除しても回答は残し、invite_idをNULLにする。
+  invite EventInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  // 同じイベントには同じ正規化メールアドレスで複数回答できない。
+  @@unique([eventId, emailNormalized])
+
+  @@index([eventId, respondedAt(sort: Desc)], map: "idx_rsvps_event")
+  @@map("event_rsvps")
+}
