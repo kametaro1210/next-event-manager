@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSession } from "../auth/server";
 import { prisma } from "../prisma";
@@ -72,3 +73,48 @@ export async function createEventAction(formData: FormData) {
     console.error(err);
   }
 }
+
+// --------------------------------------------------------------------------
+
+/*
+  イベントの招待リンクを作成・更新する処理
+
+  【引数】
+  - eventId：招待リンクを作成するイベントのID。
+
+  【処理フロー】
+  1. セッションからログインユーザーのIDを取得する。
+  2. イベントIDとユーザーIDを使って、イベントの所有者であることを確認する。
+  3. 所有するイベントがなければエラーにする。
+  4. 新しい招待トークンを作り、イベントに招待リンクがあれば更新、なければ作成する。
+*/
+
+export async function createInviteLinkAction(eventId: string) {
+  const session = await getSession();
+  const userId = session.data?.user.id;
+    if (!userId) {
+      throw new Error("Unauthorized.")
+    }
+
+  const owns = await prisma.event.findFirst({
+    where: { id: eventId, ownerUserId: userId },
+    select: { id: true },
+  });
+
+  if (!owns) {
+    throw new Error("Event not found.");
+  }
+
+  // ハイフンを除外したランダムなUUID文字列を生成
+  const token = crypto.randomUUID().replace(/-/g, "");
+
+  await prisma.eventInvite.upsert({
+    where: { eventId },
+    create: { eventId, token },
+    update: { token },
+  });
+
+  // 指定したパスのキャッシュを無効化し、リアルタイムで招待リンクを表示する
+  revalidatePath(`/events/${eventId}`);
+}
+
