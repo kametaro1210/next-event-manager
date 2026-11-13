@@ -1,22 +1,30 @@
 import { authLocalization } from "@/lib/auth-localization";
-import { AuthView } from '@neondatabase/auth/react';
+import { DelayedSpinner } from "@/components/delayed-spinner";
+import { AuthView } from "@neondatabase/auth/react";
+import { Suspense } from "react";
 
-// export const dynamicParams = false;
+export default function AuthPage({
+  params,
+}: {
+  params: Promise<{ path: string }>;
+}) {
+  return (
+    <div className="flex w-full flex-1 flex-col items-center justify-center gap-3">
+      <Suspense fallback={<DelayedSpinner />}>
+        <AuthPageContent params={params} />
+      </Suspense>
+    </div>
+  );
+}
 
-export default async function AuthPage({ 
-  params 
-}: { 
-  params: Promise<{ path: string 
-}> }) {
-
+async function AuthPageContent({
+  params,
+}: {
+  params: Promise<{ path: string }>;
+}) {
   const { path } = await params;
 
   return (
-    <main className="container mx-auto flex grow flex-col items-center justify-center gap-3 self-center p-4 md:p-6">
-      <AuthView 
-        path={path} 
-        localization={authLocalization}
-      />
-    </main>
+    <AuthView path={path} localization={authLocalization} />
   );
 }

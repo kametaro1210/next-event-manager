@@ -64,9 +64,9 @@ export async function DashboardContent({ userId }: { userId: string }) {
 
   return (
     <div className="flex flex-1 flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">主催のイベント</h1>
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">主催のイベント</h1>
           <p className="text-sm text-[var(--muted-foreground)]">
             出欠状況の確認と招待リンクの管理
           </p>
@@ -96,7 +96,7 @@ export async function DashboardContent({ userId }: { userId: string }) {
             <Card key={event.id}>
               <CardHeader className="space-y-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-lg">{event.title}</CardTitle>
+                  <CardTitle className="min-w-0 flex-1 break-words text-lg">{event.title}</CardTitle>
                   <Button size="sm" asChild>
                     <Link href={`/events/${event.id}`}>Open</Link>
                   </Button>
@@ -109,7 +109,7 @@ export async function DashboardContent({ userId }: { userId: string }) {
                     不参加人数: {event.notGoingCount}
                   </Badge>
                 </div>
-                <p>
+                <p className="break-words text-sm">
                   {event.eventDate
                     ? new Date(event.eventDate).toLocaleString()
                     : "日時の指定がありません"}

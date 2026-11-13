@@ -1,6 +1,22 @@
 import { InviteRsvpContent } from "@/components/invite-rsvp-content";
+import { DelayedSpinner } from "@/components/delayed-spinner";
+import { Suspense } from "react";
 
-export default async function InvitePage({
+export default function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ submitted?: string }>;
+}) {
+  return (
+    <Suspense fallback={<DelayedSpinner />}>
+      <InvitePageContent params={params} searchParams={searchParams} />
+    </Suspense>
+  );
+}
+
+async function InvitePageContent({
   params,
   searchParams,
 }: {

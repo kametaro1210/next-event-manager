@@ -51,7 +51,7 @@ export default async function NewEventPage() {
               <FormMessage>※あとから変更可能です（入力は任意です）</FormMessage>
             </FormField>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button type="submit">イベント作成</Button>
               <Button type="button" variant="outline" asChild>
                 <Link href={"/dashboard"}>Cancel</Link>

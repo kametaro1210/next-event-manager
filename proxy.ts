@@ -20,6 +20,26 @@ function isServerActionPost(request: NextRequest) {
 // ---------------------------------------------------------------------
 
 /*
+  ログイン不要で閲覧できるイベントページか判定する処理
+
+  【引数】
+  - pathname：リクエストされたURLのパス。
+
+  【処理フロー】
+  1. イベント一覧とイベント予約ページならtrueを返す。
+  2. それ以外のイベントページは認証対象としてfalseを返す。
+*/
+
+function isPublicEventRoute(pathname: string) {
+  return (
+    pathname === "/events" ||
+    /^\/events\/[^/]+\/reserve\/?$/.test(pathname)
+  );
+}
+
+// ---------------------------------------------------------------------
+
+/*
   リクエストに応じて認証処理を行う処理
 
   【引数】
@@ -32,6 +52,10 @@ function isServerActionPost(request: NextRequest) {
 
 export default async function proxy(request: NextRequest) {
   if (isServerActionPost(request)) {
+    return NextResponse.next();
+  }
+  // 公開イベント一覧と予約ページはログイン認証を通さず表示する。
+  if (isPublicEventRoute(request.nextUrl.pathname)) {
     return NextResponse.next();
   }
   const { auth } = await import("@/lib/auth/server");
