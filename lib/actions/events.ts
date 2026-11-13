@@ -353,3 +353,66 @@ export async function submitOrUpdateRsvpAction(
   // submittedに1のクエリに付けて送信完了メッセージを表示する。
   redirect(`/invite/${token}?submitted=1`);
 }
+
+// --------------------------------------------------------------------------
+
+/*
+  公開イベント一覧から届いたRSVPを新規登録または更新する処理
+
+  【引数】
+  - eventId：RSVPを受け付けるイベントのID。
+  - formData：回答者の名前、メールアドレス、参加状況を受け取るフォームデータ。
+
+  【処理フロー】
+  1. parseRsvpでフォーム入力を確認・整形する。
+  2. eventIdからイベントを検索し、見つからなければエラーにする。
+  3. イベントIDと小文字にそろえたメールアドレスを使って、既存の回答を検索する。
+  4. 回答があれば更新し、なければ招待リンクを使わない回答として新しく登録する。
+  5. 登録・更新後、公開イベント一覧へ移動する。
+*/
+
+export async function submitPublicRsvpAction(
+  eventId: string,
+  formData: FormData,
+) {
+  // フォームから受け取った回答内容を検証・整形する。
+  const input = parseRsvp(formData);
+  // 回答対象のイベントが存在することを確認する。
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { id: true },
+  });
+
+  if (!event) {
+    throw new Error("Event not found.");
+  }
+
+  // イベントIDと小文字にそろえたメールアドレスを使って、既存の回答を検索する。
+  const emailNormalized = input.email.toLowerCase();
+
+  await prisma.eventRsvp.upsert({
+    where: {
+      eventId_emailNormalized: {
+        eventId: event.id,
+        emailNormalized,
+      },
+    },
+    create: {
+      eventId: event.id,
+      inviteId: null,
+      name: input.name,
+      email: input.email,
+      emailNormalized,
+      status: input.status,
+    },
+    update: {
+      name: input.name,
+      status: input.status,
+      respondedAt: new Date(),
+    },
+  });
+
+  // 最新の予約完了状態を一覧に反映し、イベント一覧へ戻す。
+  revalidatePath("/events");
+  redirect("/events?reserved=1");
+}

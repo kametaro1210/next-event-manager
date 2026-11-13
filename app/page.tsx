@@ -40,6 +40,9 @@ export default function Home() {
           <Button variant="ghost" asChild>
             <Link href="/dashboard">ダッシュボードを開く</Link>
           </Button>
+          <Button variant="outline" asChild>
+            <Link href="/events">イベント一覧</Link>
+          </Button>
         </div>
       </section>
 
